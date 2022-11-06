@@ -12,53 +12,25 @@ g = win.graphics;
 var myBrush = g.newBrush(g.BrushType.SOLID_COLOR, [0.99, 0.99, 0.99, 1]);
 g.backgroundColor = myBrush;
 win.orientation='stack';
+
 win.p1= win.add("panel", undefined, undefined, {borderStyle:"black"}); 
 win.g1 = win.p1.add('group');
 win.g1.orientation = "row";
 win.title = win.g1.add('statictext',undefined,'Run Action(s)');
 win.title.alignment="fill";
+
 var g = win.title.graphics;
 g.font = ScriptUI.newFont("Georgia","BOLDITALIC",22);
 win.p1.p1= win.p1.add("panel", undefined, undefined, {borderStyle:"black"}); 
 win.p1.p1.preferredSize=[300,2];
-win.g3 =win.p1.add('group');
-win.g3.orientation = "row";
-win.g3.alignment='fill';
-win.g3.spacing=10;
-win.g3.cb1 = win.g3.add('checkbox',undefined,'Create Snapshop');
-win.g5 =win.p1.add('group');
-win.g5.orientation = "row";
-win.g5.alignment='fill';
-win.g5.spacing=10;
-win.g5.cb1 = win.g5.add('checkbox',undefined,'Run Action(s) On All Layers');
-win.g5.cb1.value=true;
+
 win.g6 =win.p1.add('group');
 win.g6.orientation = "row";
 win.g6.alignment='fill';
 win.g6.spacing=10;
 win.g6.cb1 = win.g6.add('checkbox',undefined,'Run Action(s) On Selected Layer(s)');
-if(activeDocument.layers.length < 2){
-    win.g6.cb1.enabled=false;
-    }
-var selectedLayers= getSelectedLayersIdx();
-if(selectedLayers.length <1)  win.g6.cb1.enabled=false;
+win.g6.cb1.value=true;
 
-win.g5.cb1.onClick=function(){
-    if(win.g5.cb1.value){
-        win.g6.cb1.value=false;
-       }else{
-            win.g6.cb1.value=true;
-           if(selectedLayers.length >1)  win.g6.cb1.enabled=true;
-           }
-}
-win.g6.cb1.onClick=function(){
-    if(win.g6.cb1.value){
-        win.g5.cb1.value=false;
-       }else{
-           win.g5.cb1.value=true;
-           }
-}
-win.g5.cb1.onClick();
 win.p1.p2= win.p1.add("panel", undefined, undefined, {borderStyle:"black"}); 
 win.p1.p2.preferredSize=[300,2];
 win.g10 =win.p1.add('group');
@@ -122,14 +94,11 @@ win.g15.bu2.onClick = function() {
 win.g20.bu1.onClick=function(){
 if(actionArray.length ==0) actionArray.push([[win.g10.dd2.selection.text],[win.g10.dd1.selection.text]]);
 win.close(1);
-if(win.g5.cb1.value){
-    selectAllLayers();
-    selectedLayers= getSelectedLayersIdx();
-    }
-if(win.g3.cb1.value) snapShot();
+var selectedLayers= getSelectedLayersIdx();
+// var selectedLayers = SelectedLayers();
 for(var a in selectedLayers){
     makeActiveByIndex(Number(selectedLayers[a]));
-     if(app.activeDocument.activeLayer.kind != LayerKind.NORMAL) continue;
+     if(app.activeDocument.activeLayer.kind != LayerKind.GROUP) continue;
      for(var z in actionArray){
          try{
          doAction(actionArray[z][0].toString(), actionArray[z][1].toString());	
@@ -218,23 +187,14 @@ sTID = function(s) { return app.stringIDToTypeID(s); };
   }
   return names;
 };
-function snapShot() {
-    var desc9 = new ActionDescriptor();
-        var ref5 = new ActionReference();
-        ref5.putClass( charIDToTypeID('SnpS') );
-    desc9.putReference( charIDToTypeID('null'), ref5 );
-        var ref6 = new ActionReference();
-        ref6.putProperty( charIDToTypeID('HstS'), charIDToTypeID('CrnH') );
-    desc9.putReference( charIDToTypeID('From'), ref6 );
-    desc9.putEnumerated( charIDToTypeID('Usng'), charIDToTypeID('HstS'), charIDToTypeID('FllD') );
-    executeAction( charIDToTypeID('Mk  '), desc9, DialogModes.NO );
-};
+
 function hasLayerMask() { 
    var ref = new ActionReference(); 
    ref.putEnumerated( stringIDToTypeID( "layer" ), charIDToTypeID( "Ordn" ), charIDToTypeID( "Trgt" )); 
    var Mask= executeActionGet( ref ); 
    return Mask.hasKey(charIDToTypeID('Usrs')); 
 };
+
 function getSelectedLayersIdx(){ 
       var selectedLayers = new Array; 
       var ref = new ActionReference(); 
@@ -265,6 +225,7 @@ function getSelectedLayersIdx(){
       } 
       return selectedLayers; 
  };
+
 function makeActiveByIndex( idx, visible,add ){ 
     if(visible == undefined) visible = false;
     if(add == undefined) add=false;
@@ -276,17 +237,29 @@ function makeActiveByIndex( idx, visible,add ){
       desc.putBoolean( charIDToTypeID( "MkVs" ), visible ); 
    executeAction( charIDToTypeID( "slct" ), desc, DialogModes.NO ); 
 };
-function selectAllLayers(layer) {
-if(layer == undefined) layer = 0;
-activeDocument.activeLayer = activeDocument.layers[activeDocument.layers.length-1];
-var BL = activeDocument.activeLayer.name;
-activeDocument.activeLayer = activeDocument.layers[layer];
-    var desc5 = new ActionDescriptor();
-        var ref3 = new ActionReference();
-        ref3.putName( charIDToTypeID('Lyr '), BL);
-    desc5.putReference( charIDToTypeID('null'), ref3 );
-    desc5.putEnumerated( stringIDToTypeID('selectionModifier'), stringIDToTypeID('selectionModifierType'), stringIDToTypeID('addToSelectionContinuous') );
-    desc5.putBoolean( charIDToTypeID('MkVs'), false );
-    executeAction( charIDToTypeID('slct'), desc5, DialogModes.NO );
-};
+
+
+function SelectedLayers() {
+	try{
+		var ActLay = app.activeDocument.activeLayer;
+		ActLay.allLocked = true; //lock all selected layers
+		var LayerStack = app.activeDocument.artLayers.length;
+
+		var selLayers = new Array();
+		for(var i = 0; i <= LayerStack - 1; i++) {
+			ActLay = app.activeDocument.layers[i]
+			if (ActLay.allLocked == true) {selLayers.push(app.activeDocument.layers[i]);} // push all locked layers into an array
+		}
+
+		for (i = 0; i <= LayerStack - 1; i++) {
+			var LAY = app.activeDocument.layers[i];
+			LAY.allLocked = false; // unlock all locked Layers
+		}
+
+		return selLayers;
+	}
+	catch(e){/*alert(e);*/}
+}
+
+SelectedLayers()
 }
